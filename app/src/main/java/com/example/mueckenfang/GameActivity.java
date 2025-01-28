@@ -34,6 +34,8 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
     private boolean spielLaeuft;
     private Handler handler = new Handler();
     private MediaPlayer mp;
+    private MediaPlayer mpGameOver; // Neue MediaPlayer-Instanz für Game Over
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,6 +44,7 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
         massstab = getResources().getDisplayMetrics().density;
         spielbereich = findViewById(R.id.spielbereich);
         mp = MediaPlayer.create(this, R.raw.summen);
+        mpGameOver = MediaPlayer.create(this, R.raw.zonk); // Initialisiere den Game Over Sound
         spielStarten();
     }
 
@@ -128,6 +131,9 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void gameOver() {
+        if (mpGameOver != null) {
+            mpGameOver.start();
+        }
         Dialog dialog = new Dialog(this, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
         dialog.setContentView(R.layout.gameover);
         dialog.show();
@@ -181,7 +187,13 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     protected void onDestroy() {
-        mp.release();
+        // Freigeben der MediaPlayer-Ressourcen
+        if (mp != null) {
+            mp.release();
+        }
+        if (mpGameOver != null) {
+            mpGameOver.release();
+        }
         super.onDestroy();
     }
 
