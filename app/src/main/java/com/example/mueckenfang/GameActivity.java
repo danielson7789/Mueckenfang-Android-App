@@ -205,5 +205,5 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
 }
 
 /**
- * Kapitel 5.3.9 weiter machen auf Seite 220
+ * Kapitel 6.3 weiter machen auf Seite 257
  */
