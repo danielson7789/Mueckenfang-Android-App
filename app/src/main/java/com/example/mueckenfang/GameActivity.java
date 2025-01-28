@@ -152,6 +152,7 @@ public class GameActivity extends AppCompatActivity implements OnClickListener {
         dialog.setContentView(R.layout.gameover);
         dialog.show();
         spielLaeuft = false;
+
     }
 
         @Override
