@@ -1,3 +1,4 @@
 <resources>
     <item name="geburtsdatum" type="id"/>
+    <item name="tier" type="id"/>
 </resources>

@@ -1,44 +1,47 @@
 package com.example.mueckenfang;
 
 import android.app.Dialog;
+import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.Gravity;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
-
-import androidx.activity.EdgeToEdge;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import java.util.Date;
 import java.util.Random;
 
-public class GameActivity extends AppCompatActivity implements OnClickListener {
+import androidx.appcompat.app.AppCompatActivity;
+
+
+public class GameActivity extends AppCompatActivity implements View.OnClickListener, Runnable {
+    private static final String ELEFANT = "ELEFANT";
     private static final long HOECHSTALTER_MS = 2000;
+    public static final int DELAY_MILLIS = 1000;
+    public static final int ZEITSCHEIBEN = 60;
     private int punkte;
     private int runde;
     private int gefangeneMuecken;
     private int zeit;
     private float massstab;
     private int muecken;
-    private boolean spielLaeuft;
     private Random zufallsgenerator = new Random();
-    private float zufallszahl = zufallsgenerator.nextFloat();
     private ViewGroup spielbereich;
-
+    private boolean spielLaeuft;
+    private Handler handler = new Handler();
+    private MediaPlayer mp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.game);
         massstab = getResources().getDisplayMetrics().density;
-        spielbereich = (ViewGroup) findViewById(R.id.spielbereich);
+        spielbereich = findViewById(R.id.spielbereich);
+        mp = MediaPlayer.create(this, R.raw.summen);
         spielStarten();
     }
 
@@ -49,47 +52,70 @@ public class GameActivity extends AppCompatActivity implements OnClickListener {
         starteRunde();
     }
 
-    private void starteRunde() {
-        runde = runde + 1;
-        muecken = runde + 10;
-        gefangeneMuecken = 0;
-        zeit = 60;
-        bildschirmAktualisieren();
-    }
-
     private void bildschirmAktualisieren() {
-        TextView tvRunde = (TextView) findViewById(R.id.round);
+        TextView tvPunkte = findViewById(R.id.points);
+        tvPunkte.setText(Integer.toString(punkte));
+        TextView tvRunde = findViewById(R.id.round);
         tvRunde.setText(Integer.toString(runde));
-        TextView tvTreffer = (TextView) findViewById(R.id.hits);
+        TextView tvTreffer = findViewById(R.id.hits);
         tvTreffer.setText(Integer.toString(gefangeneMuecken));
-        TextView tvZeit = (TextView) findViewById(R.id.time);
-        tvZeit.setText(Integer.toString(zeit));
-        FrameLayout flTreffer = (FrameLayout) findViewById(R.id.bar_hits);
-        FrameLayout flZeit = (FrameLayout) findViewById(R.id.bar_time);
+        TextView tvZeit = findViewById(R.id.time);
+        tvZeit.setText(Integer.toString(zeit / (1000 / DELAY_MILLIS)));
+        FrameLayout flTreffer = findViewById(R.id.bar_hits);
+        FrameLayout flZeit = findViewById(R.id.bar_time);
         ViewGroup.LayoutParams lpTreffer = flTreffer.getLayoutParams();
-        lpTreffer.width = Math.round(massstab * 300 * Math.min(gefangeneMuecken, muecken) / muecken);
+        lpTreffer.width = muecken > 0 ? Math.round(massstab * 300 *
+                Math.min(gefangeneMuecken, muecken) / muecken) : 0;
         ViewGroup.LayoutParams lpZeit = flZeit.getLayoutParams();
-        lpZeit.width = Math.round(massstab + zeit + 300 / 60);
+        lpZeit.width = Math.round(massstab * zeit * 300 / ZEITSCHEIBEN);
+
     }
 
     private void zeitHerunterzaehlen() {
         zeit = zeit - 1;
-        float zufallszahl = zufallsgenerator.nextFloat();
-        double wahrscheinlichkeit = muecken * 1.5;
-        if (wahrscheinlichkeit > 1) {
-            eineMueckeAnzeigen();
-            if (zufallszahl < wahrscheinlichkeit - 1) {
+        if (zeit % (1000 / DELAY_MILLIS) == 0) {
+            float zufallszahl = zufallsgenerator.nextFloat();
+            double wahrscheinlichkeit = muecken * 1.5 / 60;
+
+            if (wahrscheinlichkeit > 1) {
                 eineMueckeAnzeigen();
-            }
-        } else {
-            if (zufallszahl < wahrscheinlichkeit) {
-                eineMueckeAnzeigen();
+                if (zufallszahl < wahrscheinlichkeit - 1) {
+                    eineMueckeAnzeigen();
+                }
+            } else {
+                if (zufallszahl < wahrscheinlichkeit) {
+                    eineMueckeAnzeigen();
+                }
             }
         }
         mueckenVerschwinden();
         bildschirmAktualisieren();
         if (!pruefeSpielende()) {
-            pruefeRundenende();
+            if (!pruefeRundenende()) {
+                handler.postDelayed(this, DELAY_MILLIS);
+            }
+        }
+    }
+
+    private boolean pruefeRundenende() {
+        if (gefangeneMuecken >= muecken) {
+            starteRunde();
+            return true;
+        }
+        return false;
+    }
+
+    private void starteRunde() {
+        runde = runde + 1;
+        muecken = runde * 20;
+        gefangeneMuecken = 0;
+        zeit = ZEITSCHEIBEN;
+        bildschirmAktualisieren();
+        handler.postDelayed(this, 1000);
+        int id = getResources().getIdentifier("hintergrund" + runde, "drawable", this.getPackageName());
+        if (id > 0) {
+            LinearLayout l = findViewById(R.id.hintergrund);
+            l.setBackgroundResource(id);
         }
     }
 
@@ -101,12 +127,26 @@ public class GameActivity extends AppCompatActivity implements OnClickListener {
         return false;
     }
 
-    private boolean pruefeRundenende() {
-        if (gefangeneMuecken >= muecken) {
-            starteRunde();
-            return true;
+    private void gameOver() {
+        Dialog dialog = new Dialog(this, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        dialog.setContentView(R.layout.gameover);
+        dialog.show();
+        spielLaeuft = false;
+
+    }
+
+    private void mueckenVerschwinden() {
+        int nummer = 0;
+        while (nummer < spielbereich.getChildCount()) {
+            ImageView muecke = (ImageView) spielbereich.getChildAt(nummer);
+            Date geburtsdatum = (Date) muecke.getTag(R.id.geburtsdatum);
+            long alter = (new Date()).getTime() - geburtsdatum.getTime();
+            if (alter > HOECHSTALTER_MS) {
+                spielbereich.removeView(muecke);
+            } else {
+                nummer++;
+            }
         }
-        return false;
     }
 
     private void eineMueckeAnzeigen() {
@@ -116,6 +156,7 @@ public class GameActivity extends AppCompatActivity implements OnClickListener {
         int muecke_hoehe = Math.round(massstab * 42);
         int links = zufallsgenerator.nextInt(breite - muecke_breite);
         int oben = zufallsgenerator.nextInt(hoehe - muecke_hoehe);
+
         ImageView muecke = new ImageView(this);
         muecke.setImageResource(R.drawable.muecke);
         muecke.setOnClickListener(this);
@@ -127,42 +168,42 @@ public class GameActivity extends AppCompatActivity implements OnClickListener {
         params.gravity = Gravity.TOP + Gravity.LEFT;
 
         spielbereich.addView(muecke, params);
-    }
-
-    private void mueckenVerschwinden() {
-        int nummer=0;
-        while(nummer < spielbereich.getChildCount()) {
-            ImageView muecke =
-                    (ImageView)spielbereich.getChildAt(nummer);
-            Date geburtsdatum =
-                    (Date)muecke.getTag(R.id.geburtsdatum);
-            long alter =
-                    (new Date()).getTime() - geburtsdatum.getTime();
-            if(alter > HOECHSTALTER_MS) {
-                spielbereich.removeView(muecke);
-            } else {
-                nummer++;
-            }
+        if (zufallsgenerator.nextFloat() < 0.05) {
+            muecke.setImageResource(R.drawable.elefant);
+            muecke.setTag(R.id.tier, ELEFANT);
+        } else {
+            muecke.setImageResource(R.drawable.muecke);
         }
+
+        mp.seekTo(0);
+        mp.start();
     }
 
-    public void gameOver(){
-        Dialog dialog = new Dialog(this, android.R.style
-                .Theme_Translucent_NoTitleBar_Fullscreen);
-        dialog.setContentView(R.layout.gameover);
-        dialog.show();
-        spielLaeuft = false;
-
+    @Override
+    protected void onDestroy() {
+        mp.release();
+        super.onDestroy();
     }
 
-        @Override
-        public void onClick (View muecke){
+    @Override
+    public void onClick(View muecke) {
+        if (muecke.getTag(R.id.tier) == ELEFANT) {
+            punkte -= 1000;
+        } else {
             gefangeneMuecken++;
             punkte += 100;
-            bildschirmAktualisieren();
-            spielbereich.removeView(muecke);
         }
-
-
-        /** Kapitel 5.3.9 weiter machen auf Seite 220 */
+        bildschirmAktualisieren();
+        spielbereich.removeView(muecke);
+        mp.pause();
     }
+
+    @Override
+    public void run() {
+        zeitHerunterzaehlen();
+    }
+}
+
+/**
+ * Kapitel 5.3.9 weiter machen auf Seite 220
+ */
