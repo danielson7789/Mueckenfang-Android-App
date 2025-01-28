@@ -182,6 +182,7 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
         }
 
         mp.seekTo(0);
+        mp.setVolume(0.5f, 0.5f);
         mp.start();
     }
 
